@@ -73,9 +73,7 @@ async function setupServer(config: Configuration) {
   // );
   // app.use("/temp_pdfs", express.static(path.join(__dirname, "public", "temp_pdfs")));
 
-  // app.listen(Number(config?.Port), () => {
-  //   console.log(`Server running on port ${config?.Port}, ${config?.Name}`);
-  // });
+
   // Static files
   app.use(
     "/api/public",
@@ -86,6 +84,10 @@ async function setupServer(config: Configuration) {
     "/temp_pdfs",
     express.static(path.join(process.cwd(), "public", "temp_pdfs"))
   );
+
+  app.listen(Number(config?.Port), () => {
+    console.log(`Server running on port ${config?.Port}, ${config?.Name}`);
+  });
 
 }
 
