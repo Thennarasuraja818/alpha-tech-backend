@@ -4,8 +4,7 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "start": "pm2 start ecosystem.config.js",
-    "dev": "nodemon index.ts",
+    "start": "nodemon index.ts",
     "rendor": "node dist/index.js",
     "test": "jest"
   },
