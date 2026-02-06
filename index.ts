@@ -68,14 +68,25 @@ async function setupServer(config: Configuration) {
   //   console.log("Cron job running every day 10.00  at " + new Date().toISOString());
   //   cronService.applyExpiryAdjustments();
   // });
-  app.use("/api/public",
-    express.static(path.join(__dirname, "public"))
-  );
-  app.use("/temp_pdfs", express.static(path.join(__dirname, "public", "temp_pdfs")));
+  // app.use("/api/public",
+  //   express.static(path.join(__dirname, "public"))
+  // );
+  // app.use("/temp_pdfs", express.static(path.join(__dirname, "public", "temp_pdfs")));
 
-  app.listen(Number(config?.Port), () => {
-    console.log(`Server running on port ${config?.Port}, ${config?.Name}`);
-  });
+  // app.listen(Number(config?.Port), () => {
+  //   console.log(`Server running on port ${config?.Port}, ${config?.Name}`);
+  // });
+  // Static files
+  app.use(
+    "/api/public",
+    express.static(path.join(process.cwd(), "public"))
+  );
+
+  app.use(
+    "/temp_pdfs",
+    express.static(path.join(process.cwd(), "public", "temp_pdfs"))
+  );
+
 }
 
 main();
