@@ -51,6 +51,9 @@ export const createProductSchema = z.object({
   metaKeyword: z.string().optional(),
   metaDesc: z.string().optional(),
   delivery: z.string().optional(),
+
+  as_568a_standard: z.array(z.any()).optional(),
+  jis_b_2401_standard: z.array(z.any()).optional(),
 });
 
 export type ProductInput = z.infer<typeof createProductSchema>;

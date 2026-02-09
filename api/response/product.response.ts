@@ -57,6 +57,8 @@ export interface ProductDocument {
   isActive: boolean;
   createdBy: string;
   modifiedBy: string;
+  as_568a_standard: any[];
+  jis_b_2401_standard: any[];
 
   createdAt: Date;
   updatedAt: Date;
