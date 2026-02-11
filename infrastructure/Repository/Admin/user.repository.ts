@@ -951,7 +951,7 @@ class UserRepository implements IUserCreateRepository {
             }
 
             // 2. Verify PIN
-            const validPin = await bcrypt.compare(pin, adminExist.password);
+            const validPin = await bcrypt.compare(pin as string, adminExist.password);
             if (!validPin) {
                 return createErrorResponse("Incorrect pin", 400);
             }

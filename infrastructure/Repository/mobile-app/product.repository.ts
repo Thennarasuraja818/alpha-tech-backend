@@ -844,7 +844,9 @@ class ProductRepository implements ProductDomainRepository {
                         totalRating: 1,
                         averageRating: 1,
                         totalReviews: 1,
-                        offers: 1
+                        offers: 1,
+                        as_568a_standard: 1,
+                        jis_b_2401_standard: 1
                     }
                 })
             if (sortBy !== '') {
@@ -1022,7 +1024,9 @@ class ProductRepository implements ProductDomainRepository {
                     offers: element.offers,
                     offerType,
                     offerId,
-                    offerDiscount
+                    offerDiscount,
+                    as_568a_standard: element.as_568a_standard ?? [],
+                    jis_b_2401_standard: element.jis_b_2401_standard ?? []
                 };
 
                 if (params.type == 'customer' || params.type == 'retailer') {

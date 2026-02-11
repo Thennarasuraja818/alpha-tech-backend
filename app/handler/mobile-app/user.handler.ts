@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 
 import { MobileUserServiceDomain } from "../../../domain/mobile-app/user.domain";
-import { AddPin, CreateUserMobileApp, MobileLoginInput, OtpVerification, createMobileUserSchema, loginUserSchema, otpVerificationSchema, pinUpdateSchema } from "../../../api/Request/mobileAppUser";
+import { AddPin, CreateUserMobileApp, ForgetPasswordRequest, MobileLoginInput, OtpVerification, ResetPasswordV2, VerifyForgetPasswordOtp, createMobileUserSchema, forgetPasswordRequestSchema, loginUserSchema, otpVerificationSchema, pinUpdateSchema, resetPasswordV2Schema, verifyForgetPasswordOtpSchema } from "../../../api/Request/mobileAppUser";
 
 import { logUserActivity } from '../../../utils/utilsFunctions/user.activity';
 import { ChangePasswordInput, changePasswordSchema } from "../../../api/Request/user";
@@ -162,6 +162,45 @@ export class UserHandler {
       return res
         .status(StatusCodes.INTERNAL_SERVER_ERROR)
         .json({ error: err.message });
+    }
+  };
+
+  requestForgetPasswordOtp = async (req: Request, res: Response): Promise<any> => {
+    try {
+      const parsed = forgetPasswordRequestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(StatusCodes.BAD_REQUEST).json({ errors: parsed.error.errors });
+      }
+      const result = await this.userService.requestForgetPasswordOtp(parsed.data);
+      return res.status(result.status === "error" ? StatusCodes.BAD_REQUEST : StatusCodes.OK).json(result);
+    } catch (err: any) {
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ error: err.message });
+    }
+  };
+
+  verifyForgetPasswordOtp = async (req: Request, res: Response): Promise<any> => {
+    try {
+      const parsed = verifyForgetPasswordOtpSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(StatusCodes.BAD_REQUEST).json({ errors: parsed.error.errors });
+      }
+      const result = await this.userService.verifyForgetPasswordOtp(parsed.data);
+      return res.status(result.status === "error" ? StatusCodes.BAD_REQUEST : StatusCodes.OK).json(result);
+    } catch (err: any) {
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ error: err.message });
+    }
+  };
+
+  resetPasswordV2 = async (req: Request, res: Response): Promise<any> => {
+    try {
+      const parsed = resetPasswordV2Schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(StatusCodes.BAD_REQUEST).json({ errors: parsed.error.errors });
+      }
+      const result = await this.userService.resetPasswordV2(parsed.data);
+      return res.status(result.status === "error" ? StatusCodes.BAD_REQUEST : StatusCodes.OK).json(result);
+    } catch (err: any) {
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ error: err.message });
     }
   };
 }

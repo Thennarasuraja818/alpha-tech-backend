@@ -1,6 +1,6 @@
 import { ApiResponse } from "../../api/response/commonResponse";
 import { ErrorResponse } from "../../api/response/cmmonerror";
-import { AddPin, CreateUserMobileApp, MobileLoginInput, OtpVerification } from "../../api/Request/mobileAppUser";
+import { AddPin, CreateUserMobileApp, ForgetPasswordRequest, MobileLoginInput, OtpVerification, ResetPasswordV2, VerifyForgetPasswordOtp } from "../../api/Request/mobileAppUser";
 import { ChangePasswordInput } from "../../api/Request/user";
 
 export interface IMobileUserRepository {
@@ -26,7 +26,10 @@ export interface IMobileUserRepository {
   updateUser(id: string,
     data: CreateUserMobileApp
   ): Promise<ApiResponse<any> | ErrorResponse>;
-   userData(id:string): Promise<ApiResponse<any> | ErrorResponse>;
+  userData(id: string): Promise<ApiResponse<any> | ErrorResponse>;
+  requestForgetPasswordOtp(data: ForgetPasswordRequest): Promise<ApiResponse<any> | ErrorResponse>;
+  verifyForgetPasswordOtp(data: VerifyForgetPasswordOtp): Promise<ApiResponse<any> | ErrorResponse>;
+  resetPasswordV2(data: ResetPasswordV2): Promise<ApiResponse<any> | ErrorResponse>;
 }
 
 export interface MobileUserServiceDomain {
@@ -53,4 +56,7 @@ export interface MobileUserServiceDomain {
     data: CreateUserMobileApp
   ): Promise<ApiResponse<any> | ErrorResponse>;
   userData(id: string): Promise<ApiResponse<any> | ErrorResponse>;
+  requestForgetPasswordOtp(data: ForgetPasswordRequest): Promise<ApiResponse<any> | ErrorResponse>;
+  verifyForgetPasswordOtp(data: VerifyForgetPasswordOtp): Promise<ApiResponse<any> | ErrorResponse>;
+  resetPasswordV2(data: ResetPasswordV2): Promise<ApiResponse<any> | ErrorResponse>;
 }

@@ -2,7 +2,7 @@ import { ApiResponse } from "../../../api/response/commonResponse";
 import { ErrorResponse } from "../../../api/response/cmmonerror";
 import { AdminUser } from "../../../api/response/admin.response";
 import { MobileUserServiceDomain } from "../../../domain/mobile-app/user.domain";
-import { AddPin, CreateUserMobileApp, MobileLoginInput, OtpVerification } from "../../../api/Request/mobileAppUser";
+import { AddPin, CreateUserMobileApp, ForgetPasswordRequest, MobileLoginInput, OtpVerification, ResetPasswordV2, VerifyForgetPasswordOtp } from "../../../api/Request/mobileAppUser";
 import { ChangePasswordInput } from "../../../api/Request/user";
 export class UserService implements MobileUserServiceDomain {
   private adminRepository: MobileUserServiceDomain;
@@ -56,11 +56,20 @@ export class UserService implements MobileUserServiceDomain {
     if (result.status === "error") return result;
     return result;
   }
-    async userData(id: string,
+  async userData(id: string,
   ): Promise<ApiResponse<AdminUser> | ErrorResponse> {
     const result = await this.adminRepository.userData(id);
     if (result.status === "error") return result;
     return result;
+  }
+  async requestForgetPasswordOtp(data: ForgetPasswordRequest): Promise<ApiResponse<any> | ErrorResponse> {
+    return this.adminRepository.requestForgetPasswordOtp(data);
+  }
+  async verifyForgetPasswordOtp(data: VerifyForgetPasswordOtp): Promise<ApiResponse<any> | ErrorResponse> {
+    return this.adminRepository.verifyForgetPasswordOtp(data);
+  }
+  async resetPasswordV2(data: ResetPasswordV2): Promise<ApiResponse<any> | ErrorResponse> {
+    return this.adminRepository.resetPasswordV2(data);
   }
 }
 

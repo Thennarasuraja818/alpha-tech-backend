@@ -12,13 +12,12 @@ class MailService {
     data: any
   ) {
     try {
-        console.log(_config?.SmtpUserName, _config?.SmtpPassword,'password');
+      console.log(_config?.SmtpUserName, _config?.SmtpPassword, 'password');
 
       const transporter = nodemailer.createTransport(
         new SMTPTransport({
           host: _config?.SmtpHost,
           port: _config?.SmtpPort ? Number(_config.SmtpPort) : undefined,
-          secure: true,
           auth: {
             user: _config?.SmtpUserName,
             pass: _config?.SmtpPassword,
