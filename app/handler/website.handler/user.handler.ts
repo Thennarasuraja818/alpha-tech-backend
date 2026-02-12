@@ -23,7 +23,7 @@ export class UserHandler {
           .status(StatusCodes.BAD_REQUEST)
           .json({ errors: parsed.error.errors });
       }
-      const data: CreateUserInput = parsed.data;
+      const data: any = parsed.data;
       const result = await this.userService.createUser(data);
       if (result.status === "error") {
         return res.status(StatusCodes.BAD_REQUEST).json(result);
@@ -56,7 +56,7 @@ export class UserHandler {
         .json({ error: err.message });
     }
   };
-   updateUser = async (req: Request, res: Response): Promise<any> => {
+  updateUser = async (req: Request, res: Response): Promise<any> => {
     try {
       const parsed = createWebsiteUserSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -64,7 +64,7 @@ export class UserHandler {
           .status(StatusCodes.BAD_REQUEST)
           .json({ errors: parsed.error.errors });
       }
-      const data: CreateUserInput = parsed.data;
+      const data: any = parsed.data;
       const result = await this.userService.createUser(data);
       if (result.status === "error") {
         return res.status(StatusCodes.BAD_REQUEST).json(result);
