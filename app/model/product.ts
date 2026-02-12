@@ -63,6 +63,9 @@ const productSchema = new Schema({
 
   lowStockQuantity: { type: Number, default: 20 },
 
+  as_568a_standard: [{ type: Schema.Types.Mixed }],
+  jis_b_2401_standard: [{ type: Schema.Types.Mixed }],
+
   isDelete: { type: Boolean, required: true, default: false },
   isActive: { type: Boolean, required: true, default: true },
   createdBy: { type: Schema.Types.ObjectId, ref: "admins", required: true },

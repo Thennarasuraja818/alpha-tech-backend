@@ -35,7 +35,8 @@ export class SubcategoryHandler {
 
   getAllSubcategories = async (req: Request, res: Response): Promise<void> => {
     const {
-      category: categoryId,
+      category,
+      categoryId,
       limit,
       offset,
       search,
@@ -44,7 +45,7 @@ export class SubcategoryHandler {
     } = req.query;
 
     const result = await this.service.getAllSubcategories({
-      categoryId: categoryId as string | undefined,
+      categoryId: (categoryId || category) as string | undefined,
       limit: limit ? Number(limit) : undefined,
       offset: offset ? Number(offset) : undefined,
       search: search as string | undefined,

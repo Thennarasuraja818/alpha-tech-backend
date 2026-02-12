@@ -9,7 +9,7 @@ import bcrypt from "bcrypt";
 import { _config } from "../../../config/config";
 import Users from "../../../app/model/user";
 import jwt from "jsonwebtoken";
-import { AddPin, CreateUserMobileApp, MobileLoginInput, OtpVerification } from "../../../api/Request/mobileAppUser";
+import { AddPin, CreateUserMobileApp, ForgetPasswordRequest, MobileLoginInput, OtpVerification, ResetPasswordV2, VerifyForgetPasswordOtp } from "../../../api/Request/mobileAppUser";
 import UserToken from "../../../app/model/user.token";
 import { IMobileUserRepository } from "../../../domain/mobile-app/user.domain";
 import { CartModel } from "../../../app/model/cart";
@@ -27,21 +27,44 @@ class MobileUserRepository implements IMobileUserRepository {
     data: MobileLoginInput
   ): Promise<ApiResponse<any> | ErrorResponse> {
     try {
-      // Step 1: Check if user exists
-      const adminExist: any = await Users.findOne({
-        phone: data.phone,
-        isActive: 1,
-        isDelete: 0,
-      });
+      let adminExist: any;
 
-      if (!adminExist) {
-        return createErrorResponse("User doesn't exist", 400);
-      }
+      if (data.email && data.password) {
+        // Step 1: Check if user exists by email
+        adminExist = await Users.findOne({
+          email: data.email,
+          isActive: 1,
+          isDelete: 0,
+        });
 
-      // Step 2: Verify password
-      const validPin = await bcrypt.compare(data.pin, adminExist?.pin);
-      if (!validPin) {
-        return createErrorResponse("Incorrect pin", 400);
+        if (!adminExist) {
+          return createErrorResponse("User doesn't exist", 400);
+        }
+
+        // Step 2: Verify password
+        const validPassword = await bcrypt.compare(data.password as string, adminExist?.password || '');
+        if (!validPassword) {
+          return createErrorResponse("Incorrect password", 400);
+        }
+      } else if (data.phone && data.pin) {
+        // Step 1: Check if user exists by phone
+        adminExist = await Users.findOne({
+          phone: data.phone,
+          isActive: 1,
+          isDelete: 0,
+        });
+
+        if (!adminExist) {
+          return createErrorResponse("User doesn't exist", 400);
+        }
+
+        // Step 2: Verify pin
+        const validPin = await bcrypt.compare(data.pin as string, adminExist?.pin || '');
+        if (!validPin) {
+          return createErrorResponse("Incorrect pin", 400);
+        }
+      } else {
+        return createErrorResponse("Invalid login data. Provide email/password or phone/pin.", 400);
       }
 
       // Step 3: Ensure secret key exists
@@ -241,7 +264,8 @@ class MobileUserRepository implements IMobileUserRepository {
     data: CreateUserMobileApp
   ): Promise<ApiResponse<any> | ErrorResponse> {
     try {
-      const userData = await Users.findOne({ phone: data.phone, isActive: 1, isDelete: 0 });
+      const phone = data.mobileNumber || data.phone || '';
+      const userData = await Users.findOne({ phone: phone, isActive: 1, isDelete: 0 });
 
       if (userData) {
         return createErrorResponse(
@@ -251,10 +275,16 @@ class MobileUserRepository implements IMobileUserRepository {
         );
       }
 
+      const hashedPassword = data.password ? await bcrypt.hash(data.password, 10) : undefined;
+
       const user = await Users.create({
-        name: data.name,
+        name: data.userName || data.name,
+        userName: data.userName,
         email: data.email,
-        phone: data.phone
+        phone: phone,
+        password: hashedPassword,
+        country: data.country,
+        preferredLanguage: data.preferredLanguage
       });
       if (user) {
         await CartModel.updateOne({ guestUserId: data.guestUserId }, { userId: user._id })
@@ -476,6 +506,74 @@ class MobileUserRepository implements IMobileUserRepository {
         StatusCodes.INTERNAL_SERVER_ERROR,
         error.message || "Failed to change password"
       );
+    }
+  }
+
+  async requestForgetPasswordOtp(data: ForgetPasswordRequest): Promise<ApiResponse<any> | ErrorResponse> {
+    try {
+      const user = await Users.findOne({ email: data.email, isActive: 1, isDelete: 0 });
+      if (!user) {
+        return createErrorResponse("User not found with this email", StatusCodes.BAD_REQUEST);
+      }
+
+      // Generate 4-digit OTP
+      const otp = Math.floor(1000 + Math.random() * 9000).toString();
+
+      // Save OTP to user document
+      await Users.updateOne({ _id: user._id }, { $set: { otp: otp } });
+
+      // Send OTP via email
+      console.log('Attempting to send OTP email to:', data.email);
+      const emailSent = await mailService.commonMailSend(
+        "Otp Verify",
+        data.email,
+        "Forget Password OTP",
+        { otp: otp, name: user.name }
+      );
+
+      console.log('Email send result:', emailSent);
+
+      if (!emailSent) {
+        console.error('Failed to send OTP email. Check SMTP configuration.');
+        return createErrorResponse("Failed to send OTP email. Please check your email configuration.", StatusCodes.INTERNAL_SERVER_ERROR);
+      }
+
+      return successResponse("OTP sent successfully to your email", StatusCodes.OK, null);
+    } catch (error: any) {
+      return createErrorResponse("An unexpected error occurred", StatusCodes.INTERNAL_SERVER_ERROR, error.message);
+    }
+  }
+
+  async verifyForgetPasswordOtp(data: VerifyForgetPasswordOtp): Promise<ApiResponse<any> | ErrorResponse> {
+    try {
+      const user = await Users.findOne({ email: data.email, isActive: 1, isDelete: 0 });
+      if (!user) {
+        return createErrorResponse("User not found", StatusCodes.BAD_REQUEST);
+      }
+
+      if (user.otp !== data.otp) {
+        return createErrorResponse("Invalid OTP", StatusCodes.BAD_REQUEST);
+      }
+
+      return successResponse("OTP verified successfully", StatusCodes.OK, null);
+    } catch (error: any) {
+      return createErrorResponse("An unexpected error occurred", StatusCodes.INTERNAL_SERVER_ERROR, error.message);
+    }
+  }
+
+  async resetPasswordV2(data: ResetPasswordV2): Promise<ApiResponse<any> | ErrorResponse> {
+    try {
+      const user = await Users.findOne({ email: data.email, isActive: 1, isDelete: 0 });
+      if (!user) {
+        return createErrorResponse("User not found", StatusCodes.BAD_REQUEST);
+      }
+
+      const hashedPassword = await bcrypt.hash(data.password, 10);
+      await Users.updateOne({ _id: user._id }, { $set: { password: hashedPassword } });
+
+      return successResponse("Password updated successfully", StatusCodes.OK, null);
+    } catch (error: any) {
+      return createErrorResponse("An unexpected error occurred", StatusCodes.INTERNAL_SERVER_ERROR, error.message);
     }
   }
 }

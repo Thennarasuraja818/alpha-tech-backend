@@ -69,6 +69,32 @@ class ProductHandler {
         }
       }
 
+      if (formFields.as_568a_standard) {
+        try {
+          formFields.as_568a_standard = JSON.parse(formFields.as_568a_standard);
+        } catch {
+          return sendErrorResponse(
+            res,
+            StatusCodes.BAD_REQUEST,
+            'Invalid as_568a_standard JSON',
+            'INVALID_INPUT'
+          );
+        }
+      }
+
+      if (formFields.jis_b_2401_standard) {
+        try {
+          formFields.jis_b_2401_standard = JSON.parse(formFields.jis_b_2401_standard);
+        } catch {
+          return sendErrorResponse(
+            res,
+            StatusCodes.BAD_REQUEST,
+            'Invalid jis_b_2401_standard JSON',
+            'INVALID_INPUT'
+          );
+        }
+      }
+
       const validationResult = createProductSchema.safeParse(formFields);
 
       if (!validationResult.success) {
@@ -160,6 +186,32 @@ class ProductHandler {
             res,
             StatusCodes.BAD_REQUEST,
             'Invalid wholesalerAttribute JSON',
+            'INVALID_INPUT'
+          );
+        }
+      }
+
+      if (formFields.as_568a_standard) {
+        try {
+          formFields.as_568a_standard = JSON.parse(formFields.as_568a_standard);
+        } catch {
+          return sendErrorResponse(
+            res,
+            StatusCodes.BAD_REQUEST,
+            'Invalid as_568a_standard JSON',
+            'INVALID_INPUT'
+          );
+        }
+      }
+
+      if (formFields.jis_b_2401_standard) {
+        try {
+          formFields.jis_b_2401_standard = JSON.parse(formFields.jis_b_2401_standard);
+        } catch {
+          return sendErrorResponse(
+            res,
+            StatusCodes.BAD_REQUEST,
+            'Invalid jis_b_2401_standard JSON',
             'INVALID_INPUT'
           );
         }

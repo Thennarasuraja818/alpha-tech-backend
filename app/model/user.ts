@@ -14,7 +14,11 @@ const user = new Schema(
     pincode: { type: String, required: false },
     createdBy: { type: Schema.Types.ObjectId, ref: "AdminUser", required: false },
     modifiedBy: { type: Schema.Types.ObjectId, ref: "AdminUser", required: false },
-    lastName: { type: String, required: false }
+    lastName: { type: String, required: false },
+    userName: { type: String, required: false },
+    password: { type: String, required: false },
+    country: { type: String, required: false },
+    preferredLanguage: { type: String, required: false }
   },
   {
     timestamps: {

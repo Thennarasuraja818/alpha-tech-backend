@@ -10,10 +10,15 @@ export function RegisterMobileUserRoute(
   const service = mobileUserServiceFun(adminRepo); // Pass repository to service  
   const handler = UserHandlerFun(service); // Pass service to handler
   router.post("/user", handler.createUser); // Define route
+  router.post("/users/register", handler.createUser); // Define route
+  router.post("/users/login", handler.loginUser); // Define route
+  router.post("/users/forget-password", handler.requestForgetPasswordOtp);
+  router.post("/users/verify-forget-password-otp", handler.verifyForgetPasswordOtp);
+  router.post("/users/reset-password", handler.resetPasswordV2);
   router.put("/otp-verification", handler.otpVerification); // Define route
   router.put("/update-pin", handler.addPin); // Define route
   router.post("/login", handler.loginUser); // Define route
   router.post("/change-password", handler.changePassword);
   router.put("/update-user/:id", handler.updateUser);
-  router.get('/user/:id',handler.userData)
+  router.get('/user/:id', handler.userData)
 }
