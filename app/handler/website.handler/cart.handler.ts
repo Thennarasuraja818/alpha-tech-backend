@@ -76,6 +76,33 @@ export class CartHandler {
       }
       const newProduct: any = products ? products[0] : [];
 
+      // Map flat variant fields to attributes object
+      if (newProduct) {
+        // Ensure price consistency (if frontend sends 'price', use it as 'mrpPrice' if missing)
+        if (newProduct.price && !newProduct.mrpPrice) {
+          newProduct.mrpPrice = newProduct.price;
+        } else if (newProduct.mrpPrice && !newProduct.price) {
+          newProduct.price = newProduct.mrpPrice;
+        }
+
+        if (!newProduct.attributes) {
+          newProduct.attributes = {};
+        }
+
+        // Map 'id' to 'pid' (to avoid conflict with _id)
+        if (newProduct.id) {
+          newProduct.attributes.pid = newProduct.id;
+        }
+
+        // Map other fields
+        const variantFields = ['sku', 'cs', 'csTolerance', 'idTolerance', 'variantName'];
+        variantFields.forEach(field => {
+          if (newProduct[field] !== undefined) {
+            newProduct.attributes[field] = newProduct[field];
+          }
+        });
+      }
+
       const cartQuery = type === 'user'
         ? { userId, isDelete: false, isActive: true }
         : { guestUserId: guestUserId || await this.generateID(), isDelete: false, isActive: true };
@@ -89,7 +116,21 @@ export class CartHandler {
         if (offerId) {
           await this.addPackageOfferToCart(type === 'user' ? userId : guestUserId, offerId, quantity ?? 1, type)
         } else {
-          await this.updateExistingCartwithProduct(cart, newProduct);
+          // Check if product already exists with same attributes
+          const isDuplicate = cart.products.some((p: any) =>
+            p.productId.toString() === newProduct.productId.toString() &&
+            this.areAttributesEqual(p.attributes, newProduct.attributes) && !p.offerId
+          );
+
+          if (isDuplicate) {
+            res.status(StatusCodes.BAD_REQUEST).json({
+              status: "error",
+              message: "Product variant already exists in cart",
+            });
+            return;
+          }
+
+          result = await this.updateExistingCartwithProduct(cart, newProduct);
         }
 
       } else {
@@ -129,23 +170,22 @@ export class CartHandler {
 
   // Helper method for attribute comparison
   private areAttributesEqual(attr1: any, attr2: any): boolean {
-    if (!attr1 && !attr2) return true;
-    if (!attr1 || !attr2) return false;
+    const normalize = (attr: any) => {
+      if (!attr) return {};
+      // Ensure consistent structure for comparison by sorting keys and converting values to strings
+      return Object.keys(attr).sort().reduce((acc: any, key) => {
+        const value = attr[key];
+        if (value !== undefined && value !== null && value !== '') {
+          acc[key] = String(value);
+        }
+        return acc;
+      }, {});
+    };
 
-    const keys1 = Object.keys(attr1);
-    const keys2 = Object.keys(attr2);
+    const n1 = normalize(attr1);
+    const n2 = normalize(attr2);
 
-    if (keys1.length !== keys2.length) return false;
-
-    return keys1.every(key => {
-      const val1 = attr1[key];
-      const val2 = attr2[key];
-
-      if (typeof val1 === 'object' && typeof val2 === 'object') {
-        return JSON.stringify(val1) === JSON.stringify(val2);
-      }
-      return val1?.toString() === val2?.toString();
-    });
+    return JSON.stringify(n1) === JSON.stringify(n2);
   }
 
   updateCart = async (req: Request, res: Response): Promise<any> => {
@@ -438,77 +478,18 @@ export class CartHandler {
 
 
   async updateExistingCartwithProduct(cart: any, newProduct: any) {
-    let result;
-
-    const existingProduct = cart.products.find((p: any) =>
-      p.productId.toString() === newProduct.productId.toString() &&
-      this.areAttributesEqual(p.attributes, newProduct.attributes) && !p.offerId
-    );
-
-    if (existingProduct) {
-      // Get the most recent product state directly from the DB to avoid stale in-memory data
-      const freshCart = await CartModel.findOne({
-        _id: cart._id,
-        "products._id": existingProduct._id,
-        isDelete: false
-      }, { "products.$": 1 });
-
-      const freshProduct = freshCart?.products?.[0];
-      const quantityDiff = newProduct.quantity - (freshProduct?.quantity || 0);
-      const priceDiff = quantityDiff * newProduct.mrpPrice;
-
-      if (newProduct.quantity === 0) {
-
-        if (cart.products.length === 1) {
-          await CartModel.deleteOne({ _id: cart._id });
+    // Simply push the new product to the existing cart and update totals
+    const result = await CartModel.findOneAndUpdate(
+      { _id: cart._id, isDelete: false },
+      {
+        $push: { products: newProduct },
+        $inc: {
+          subtotal: newProduct.mrpPrice * newProduct.quantity,
+          total: newProduct.mrpPrice * newProduct.quantity
         }
-        const pullQuery = { _id: new Types.ObjectId(freshProduct?._id) };
-        const updateResult = await CartModel.updateOne(
-          { _id: new Types.ObjectId(cart._id) },
-          {
-            $pull: { products: pullQuery },
-            $inc: {
-              subtotal: priceDiff,
-              total: priceDiff,
-            }
-          }
-        );
-
-      } else {
-        result = await CartModel.findOneAndUpdate(
-          {
-            _id: cart._id,
-            "products._id": existingProduct._id,
-            isDelete: false
-          },
-          {
-            $set: {
-              "products.$.quantity": newProduct.quantity,
-              "products.$.mrpPrice": newProduct.mrpPrice,
-            },
-            $inc: {
-              subtotal: priceDiff,
-              total: priceDiff
-            }
-          },
-          { new: true }
-        );
-      }
-
-    } else {
-      // Safe insert logic as-is
-      result = await CartModel.findOneAndUpdate(
-        { _id: cart._id, isDelete: false },
-        {
-          $push: { products: newProduct },
-          $inc: {
-            subtotal: newProduct.mrpPrice * newProduct.quantity,
-            total: newProduct.mrpPrice * newProduct.quantity
-          }
-        },
-        { new: true }
-      );
-    }
+      },
+      { new: true }
+    );
 
     return result;
   }

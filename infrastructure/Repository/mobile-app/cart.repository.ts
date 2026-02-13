@@ -117,15 +117,16 @@ export class CartRepository implements ICartRepository {
       let sellingPrice = 0;
       let deliveryCharge = 0;
       const seenOffers: any = [];
-      const user: any = type === 'customer' ? (userType === 'guest' ? null : await Users.findOne({ _id: new Types.ObjectId(userId) })) :
-        await WholesalerRetailsers.findOne({ _id: new Types.ObjectId(userId) })
+      const user: any = type === 'customer'
+        ? (userType === 'guest' ? null : (Types.ObjectId.isValid(userId) ? await Users.findOne({ _id: new Types.ObjectId(userId) }) : null))
+        : (Types.ObjectId.isValid(userId) ? await WholesalerRetailsers.findOne({ _id: new Types.ObjectId(userId) }) : null);
 
       const enhancedResult = await Promise.all(
         cartAggregation.map(async (cartItem) => {
           // Create a temporary array to maintain order
           const orderedProducts = [];
           const root = await RootModel.findOne({
-            "pincode.code": type === 'customer' ? user?.pincode : user.address.postalCode
+            "pincode.code": type === 'customer' ? user?.pincode : user?.address?.postalCode
           });
 
           const baseDeliveryCharge = root ? root.deliveryCharge : 0
@@ -138,6 +139,7 @@ export class CartRepository implements ICartRepository {
                 const offer = await OfferModel.findOne({ _id: new Types.ObjectId(prod.offerId) });
                 if (offer) {
                   for (const val of offer?.productId) {
+                    if (!Types.ObjectId.isValid(val.id)) continue;
                     const product = await ProductModel.findById({ _id: new Types.ObjectId(val.id) })
                     const attribute = await findMatchingAttributeRow(product, val.attributes, type)
                     // ✅ SHIPPING WEIGHT SUM
@@ -204,7 +206,7 @@ export class CartRepository implements ICartRepository {
               const product = await ProductModel.aggregate([
                 {
                   $match: {
-                    _id: new Types.ObjectId(prod.productId),
+                    _id: Types.ObjectId.isValid(prod.productId) ? new Types.ObjectId(prod.productId) : null,
                     isActive: true,
                     isDelete: false
                   }
@@ -252,7 +254,7 @@ export class CartRepository implements ICartRepository {
               wholesalerTotalTax += wholesalerTaxPrice * Number(prod.quantity || 0);
 
               const attributeValueIds = Object.values(prod?.attributes || {}).filter(
-                (val): val is string => typeof val === "string"
+                (val): val is string => typeof val === "string" && Types.ObjectId.isValid(val)
               );
 
               const attributeObjectIds = attributeValueIds.map(id => new Types.ObjectId(id));

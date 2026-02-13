@@ -10,7 +10,7 @@ export function RegisterCartRoute(
 ) {
   const service = webSiteCartService(adminRepo); // Pass repository to service
   const handler = CartHandlerFun(service); // Pass service to handler
-  router.post("/add-cart", handler.createCart); // Define route
+  router.post("/cart-detail/add", handler.createCart); // Define route
   router.get("/cart-list/:id", handler.getCart); // Define route
   router.get("/cart-count/:id", handler.getCartCount); // Define route
   router.get("/cart-details/:id", handler.getCartDetails); // Define route
