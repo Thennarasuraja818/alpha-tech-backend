@@ -92,19 +92,7 @@ class MobileUserRepository implements IMobileUserRepository {
         await UserToken.create({ userId: adminExist._id, token });
       }
       if (adminExist) {
-        const guestCartData = await CartModel.findOne({ guestUserId: data.guestUserId, isActive: true, isDelete: false });
-
-        if (guestCartData?.products?.length) {
-          await CartModel.updateOne(
-            { userId: adminExist._id },
-            {
-              $push: {
-                products: { $each: guestCartData.products }
-              }
-            }
-          );
-        }
-
+        await this.mergeGuestCart(data.guestUserId, adminExist._id);
       }
       // Step 6: Build and return response
       const user: any = {
@@ -287,7 +275,7 @@ class MobileUserRepository implements IMobileUserRepository {
         preferredLanguage: data.preferredLanguage
       });
       if (user) {
-        await CartModel.updateOne({ guestUserId: data.guestUserId }, { userId: user._id })
+        await this.mergeGuestCart(data.guestUserId, user._id);
       }
       return successResponse("User created successfully", StatusCodes.OK, { user });
     } catch (err: any) {
@@ -431,7 +419,7 @@ class MobileUserRepository implements IMobileUserRepository {
         pincode: data.pincode
       });
       if (user) {
-        await CartModel.updateOne({ guestUserId: data.guestUserId }, { userId: userData._id })
+        await this.mergeGuestCart(data.guestUserId, userData._id);
       }
       return successResponse("User updated successfully", StatusCodes.OK, { user });
     } catch (err: any) {
@@ -575,6 +563,101 @@ class MobileUserRepository implements IMobileUserRepository {
     } catch (error: any) {
       return createErrorResponse("An unexpected error occurred", StatusCodes.INTERNAL_SERVER_ERROR, error.message);
     }
+  }
+
+  private async mergeGuestCart(guestUserId: string | undefined, userId: Types.ObjectId) {
+    if (!guestUserId) return;
+
+    try {
+      const guestCart = await CartModel.findOne({ guestUserId, isActive: true, isDelete: false });
+      if (!guestCart || !guestCart.products || guestCart.products.length === 0) return;
+
+      const userCart = await CartModel.findOne({ userId, isActive: true, isDelete: false });
+
+      if (!userCart) {
+        // If no user cart, simply move the guest cart to the user
+        await CartModel.updateOne(
+          { _id: guestCart._id },
+          {
+            $set: {
+              userId: userId,
+              guestUserId: null
+            }
+          }
+        );
+      } else {
+        // Merge products from guest cart into user cart
+        const guestProducts = guestCart.products;
+        const userProducts = [...userCart.products];
+
+        for (const gp of guestProducts) {
+          const existingIdx = userProducts.findIndex((up: any) =>
+            up.productId.toString() === gp.productId.toString() &&
+            this.areAttributesEqual(up.attributes, gp.attributes) &&
+            up.offerId?.toString() === gp.offerId?.toString()
+          );
+
+          if (existingIdx > -1) {
+            userProducts[existingIdx].quantity += gp.quantity;
+          } else {
+            userProducts.push(gp);
+          }
+        }
+
+        // Recalculate totals
+        const uniqueOffers = new Set();
+        let subtotal = 0;
+
+        userProducts.forEach((product: any) => {
+          if (product.offerId) {
+            const offerId = product.offerId.toString();
+            if (!uniqueOffers.has(offerId)) {
+              uniqueOffers.add(offerId);
+              // Use the stored price/mrpPrice for the offer
+              subtotal += (product.mrpPrice || product.price || 0) * (product.quantity || 1);
+            }
+          } else {
+            subtotal += (product.mrpPrice || product.price || 0) * (product.quantity || 1);
+          }
+        });
+
+        await CartModel.updateOne(
+          { _id: userCart._id },
+          {
+            $set: {
+              products: userProducts,
+              subtotal: subtotal,
+              total: subtotal
+            }
+          }
+        );
+
+        // Mark guest cart as merged (delete it)
+        await CartModel.updateOne({ _id: guestCart._id }, { $set: { isDelete: true, isActive: false } });
+      }
+    } catch (error) {
+      console.error("Error merging guest cart:", error);
+    }
+  }
+
+  // Helper method for attribute comparison
+  private areAttributesEqual(attr1: any, attr2: any): boolean {
+    const normalize = (attr: any) => {
+      if (!attr) return {};
+      // Ensure consistent structure for comparison by sorting keys and converting values to strings
+      return Object.keys(attr).sort().reduce((acc: any, key) => {
+        const value = attr[key];
+        if (value !== undefined && value !== null && value !== '') {
+          acc[key] = String(value);
+        }
+        return acc;
+      }, {});
+    };
+
+    const n1 = normalize(attr1);
+    const n2 = normalize(attr2);
+
+    return JSON.stringify(n1) === JSON.stringify(n2);
   }
 }
 
