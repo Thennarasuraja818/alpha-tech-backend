@@ -42,6 +42,7 @@ export class CartRepository implements ICartRepository {
       return createErrorResponse(err.message, StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
+
   async getCart(userId: string, options: CartList): Promise<ApiResponse<any> | ErrorResponse> {
     const {
       search,
@@ -172,7 +173,7 @@ export class CartRepository implements ICartRepository {
                   customerTax: 0,
                   description: "",
                   mrpPrice: (prod?.mrpPrice ?? 0),
-                  price: offer?.fixedAmount || 0,
+                  totalAmount: (prod?.mrpPrice ?? 0) * (prod?.quantity ?? 1),
                   productImage: offer?.images,
                   wholesalerTax: 0,
                   "attributeData": [
@@ -247,10 +248,11 @@ export class CartRepository implements ICartRepository {
               if (!product || product.length === 0) continue;
 
               const productData = product[0];
-              const customerTaxPrice = (Number(productData.customerTax || 0) / 100) * Number(prod.price || 0);
+              const customerTaxPrice = (Number(productData.customerTax || 0) / 100) * Number(prod.mrpPrice || 0);
+              const productTotalAmount = (prod.mrpPrice || 0) * (prod.quantity || 0);
               customerTotalTax += customerTaxPrice * Number(prod.quantity || 0);
 
-              const wholesalerTaxPrice = (Number(productData.wholesalerTax || 0) / 100) * Number(prod.price || 0);
+              const wholesalerTaxPrice = (Number(productData.wholesalerTax || 0) / 100) * Number(prod.mrpPrice || 0);
               wholesalerTotalTax += wholesalerTaxPrice * Number(prod.quantity || 0);
 
               const attributeValueIds = Object.values(prod?.attributes || {}).filter(
@@ -354,7 +356,7 @@ export class CartRepository implements ICartRepository {
                 ...productData,
                 quantity: prod.quantity,
                 productCartId: prod._id,
-                price: prod.price,
+                totalAmount: prod.mrpPrice * prod.quantity,
                 attributeData,
                 attributes: prod.attributes,
                 offers: productData.offers || [],
@@ -372,15 +374,11 @@ export class CartRepository implements ICartRepository {
 
               orderedProducts.push(finalProduct);
 
-              // calculate overall savedAmount
               const quantity = prod?.quantity ?? 0;
               const mrpPrice = prod?.mrpPrice ?? 0;
-              const pricePerUnit = prod?.price ?? 0;
-
-              const totalMrp = mrpPrice * quantity;
-              const totalSelling = pricePerUnit * quantity;
+              const totalSelling = mrpPrice * quantity;
               sellingPrice += totalSelling;
-              savedAmount += totalMrp - totalSelling;
+              savedAmount += 0;
               // console.log(totalMrp, quantity, totalSelling, savedAmount, sellingPrice, 'sellingPrice');
 
             }
@@ -486,7 +484,7 @@ export class CartRepository implements ICartRepository {
         return createErrorResponse("Product not found in cart", StatusCodes.NOT_FOUND);
       }
 
-      const amountToSubtract = (offer == true ? (productToRemove.mrpPrice ?? 0) : (productToRemove.mrpPrice ?? 0)) * (productToRemove.quantity ?? 1);
+      const amountToSubtract = productToRemove.totalAmount || (productToRemove.mrpPrice ?? 0) * (productToRemove.quantity ?? 1);
 
       const pullQuery = offer
         ? { offerId: new Types.ObjectId(productId) }

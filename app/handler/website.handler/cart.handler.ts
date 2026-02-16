@@ -144,7 +144,10 @@ export class CartHandler {
             type,
             userId: type === 'user' ? userId : null,
             guestUserId: type !== 'user' ? (guestUserId || await this.generateID()) : null,
-            products,
+            products: (products || []).map((p: any) => ({
+              ...p,
+              totalAmount: (p.mrpPrice || 0) * (p.quantity || 1)
+            })),
             subtotal: newProduct?.mrpPrice * newProduct?.quantity,
             total: newProduct.mrpPrice * newProduct.quantity
           };
@@ -398,9 +401,9 @@ export class CartHandler {
           quantity: quantity,
           attributes: item.attributes,
           offerAmount: 0,
-          price: offer.fixedAmount,
+          totalAmount: offer.fixedAmount * quantity,
           offerId: offer._id,
-          mrpPrice: offer.mrpPrice * quantity  // Store divided MRP per product
+          mrpPrice: offer.mrpPrice
         });
       });
     }
@@ -461,13 +464,13 @@ export class CartHandler {
           uniqueOffers.add(offerId);
 
           // Add only ONCE: the main offer price
-          subtotal += (product.offerPrice || product.mrpPrice || 0) * (product.quantity || 1);
+          subtotal += (product.totalAmount || (product.mrpPrice || 0) * (product.quantity || 1));
 
         }
 
       } else {
         // normal products (count quantity)
-        subtotal += (product.mrpPrice || 0) * (product.quantity || 1);
+        subtotal += product.totalAmount || (product.mrpPrice || 0) * (product.quantity || 1);
       }
 
     });
@@ -478,14 +481,18 @@ export class CartHandler {
 
 
   async updateExistingCartwithProduct(cart: any, newProduct: any) {
-    // Simply push the new product to the existing cart and update totals
+    const productWithTotal = {
+      ...newProduct,
+      totalAmount: (newProduct.mrpPrice || 0) * (newProduct.quantity || 1)
+    };
+
     const result = await CartModel.findOneAndUpdate(
       { _id: cart._id, isDelete: false },
       {
-        $push: { products: newProduct },
+        $push: { products: productWithTotal },
         $inc: {
-          subtotal: newProduct.mrpPrice * newProduct.quantity,
-          total: newProduct.mrpPrice * newProduct.quantity
+          subtotal: productWithTotal.totalAmount,
+          total: productWithTotal.totalAmount
         }
       },
       { new: true }
