@@ -165,66 +165,66 @@ export class CrmOrderRepository implements CrmOrderDomainRepository {
                 count++;
             }
 
-            let creditManagement = []
-            let creditId = null
-            if (input.paymentMode == 'CREDIT') {
-                const findCreditTypeOrder = await OrderModel.find({
-                    paymentMode: "CREDIT",
-                    paymentStatus: { $ne: "paid" }
-                });
+            // let creditManagement = []
+            // let creditId = null
+            // if (input.paymentMode == 'CREDIT') {
+            //     const findCreditTypeOrder = await OrderModel.find({
+            //         paymentMode: "CREDIT",
+            //         paymentStatus: { $ne: "paid" }
+            //     });
 
-                const totalPaidAmount = findCreditTypeOrder.reduce((total, order) => {
-                    const orderPaidTotal = (order.creditManagement || []).reduce((sum, credit) => {
-                        return sum + (Number(credit.paidAmount) || 0);
-                    }, 0);
-                    return total + orderPaidTotal;
-                }, 0);
-                const checkCreditLimit = await WholeSalerCreditModel.findOne({
-                    wholeSalerId: new Types.ObjectId(input.placedBy),
-                    isActive: true,
-                    isDelete: false
-                });
+            //     const totalPaidAmount = findCreditTypeOrder.reduce((total, order) => {
+            //         const orderPaidTotal = (order.creditManagement || []).reduce((sum, credit) => {
+            //             return sum + (Number(credit.paidAmount) || 0);
+            //         }, 0);
+            //         return total + orderPaidTotal;
+            //     }, 0);
+            //     const checkCreditLimit = await WholeSalerCreditModel.findOne({
+            //         wholeSalerId: new Types.ObjectId(input.placedBy),
+            //         isActive: true,
+            //         isDelete: false
+            //     });
 
-                if (!checkCreditLimit) {
-                    return createErrorResponse(
-                        "credit limit is not found error",
-                        StatusCodes.NOT_FOUND,
-                        "Credit limit is not found"
-                    );
-                }
+            //     if (!checkCreditLimit) {
+            //         return createErrorResponse(
+            //             "credit limit is not found error",
+            //             StatusCodes.NOT_FOUND,
+            //             "Credit limit is not found"
+            //         );
+            //     }
 
-                if (Number(input.totalAmount) > Number(checkCreditLimit.creditLimit ?? 0)) {
-                    return createErrorResponse(
-                        "credit limit exceeded",
-                        StatusCodes.BAD_REQUEST,
-                        "Credit limit exceeded"
-                    );
-                }
+            //     if (Number(input.totalAmount) > Number(checkCreditLimit.creditLimit ?? 0)) {
+            //         return createErrorResponse(
+            //             "credit limit exceeded",
+            //             StatusCodes.BAD_REQUEST,
+            //             "Credit limit exceeded"
+            //         );
+            //     }
 
-                const creditLimit = Number(checkCreditLimit.creditLimit ?? 0);
-                const inputPaidAmount = Number(input.paidAmount ?? 0);
+            //     const creditLimit = Number(checkCreditLimit.creditLimit ?? 0);
+            //     const inputPaidAmount = Number(input.paidAmount ?? 0);
 
-                const remainingBalance = creditLimit - totalPaidAmount;
+            //     const remainingBalance = creditLimit - totalPaidAmount;
 
-                if (inputPaidAmount > remainingBalance) {
-                    return createErrorResponse(
-                        "credit limit exceeded",
-                        StatusCodes.BAD_REQUEST,
-                        "Credit limit exceeded"
-                    );
-                }
+            //     if (inputPaidAmount > remainingBalance) {
+            //         return createErrorResponse(
+            //             "credit limit exceeded",
+            //             StatusCodes.BAD_REQUEST,
+            //             "Credit limit exceeded"
+            //         );
+            //     }
 
-                const limit = {
-                    paidAmount: input?.paidAmount || 0,
-                    paidDateAndTime: new Date(),
-                    recivedUserId: null,
-                    paymentType: input?.paymentType || "",
-                }
-                console.log(new Types.ObjectId(checkCreditLimit._id));
+            //     const limit = {
+            //         paidAmount: input?.paidAmount || 0,
+            //         paidDateAndTime: new Date(),
+            //         recivedUserId: null,
+            //         paymentType: input?.paymentType || "",
+            //     }
+            //     console.log(new Types.ObjectId(checkCreditLimit._id));
 
-                creditId = new Types.ObjectId(checkCreditLimit._id)
-                creditManagement.push(limit)
-            }
+            //     creditId = new Types.ObjectId(checkCreditLimit._id)
+            //     creditManagement.push(limit)
+            // }
             // Save the new order
             const rawTotal = Number(input.totalAmount); // keep original
             const preRoundoffTotal = Number(rawTotal.toFixed(2));
@@ -235,7 +235,8 @@ export class CrmOrderRepository implements CrmOrderDomainRepository {
             input.totalAmount = roundedTotal;
             input.roundoff = roundoff;
             const doc = new OrderModel({
-                ...input, orderCode, creditId, createdBy: userId, modifiedBy: userId, creditManagement: creditManagement,
+                ...input, orderCode, createdBy: userId, modifiedBy: userId,
+                // creditId, creditManagement: creditManagement,
                 // invoiceId,
                 orderFrom: "crm"
             });
