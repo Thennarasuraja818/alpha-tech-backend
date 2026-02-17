@@ -316,20 +316,29 @@ export class OrderRepository implements OrderDomainRepository {
             // console.log(orderCode,"orderCode");
 
             const blockedStatuses = ['over-due', 'due-soon'];
-            const placedByModel = type === 'customer' ? 'User' : type ?? '';
+            const normalizedType = type?.toLowerCase();
+            const isCustomer = ['customer', 'user', 'pos'].includes(normalizedType || '');
+            const placedByModel = isCustomer ? 'User' : (normalizedType === 'wholesaler' ? 'Wholesaler' : (normalizedType === 'retailer' ? 'Retailer' : (type ?? '')));
+
             const userObjectId = new Types.ObjectId(userId);
             const matchStage: any = {
                 isDelete: false,
-                placedBy: userObjectId,
-                placedByModel
+                placedBy: userObjectId
             };
 
-            // Add orderCode search for customers only
-            if (orderCode && type === 'customer') {
+            // if (placedByModel) {
+            //     matchStage.placedByModel = placedByModel;
+            // }
+
+            // Add orderCode search
+            if (orderCode) {
                 matchStage.orderCode = { $regex: orderCode, $options: 'i' };
             }
 
-            // Filter by date (using createdAt)
+            if (orderStatus) {
+                matchStage.status = orderStatus;
+            }
+
             if (dateFilter === 'today') {
                 matchStage.createdAt = {
                     $gte: moment().startOf('day').toDate(),
@@ -354,18 +363,6 @@ export class OrderRepository implements OrderDomainRepository {
 
             const pipeline: any[] = [{ $match: matchStage }];
 
-            if (paymentStatus && !blockedStatuses.includes(paymentStatus)) {
-                if (paymentStatus === 'order') {
-                    pipeline.push({ $match: { paymentMode: 'CREDIT', paymentStatus: 'pending' } });
-                } else {
-                    pipeline.push({ $match: { paymentStatus } });
-                }
-            }
-
-            if (orderStatus) {
-                pipeline.push({ $match: { status: orderStatus } });
-            }
-
             pipeline.push({ $sort: { createdAt: -1 } });
 
             if (limit > 0) {
@@ -374,6 +371,9 @@ export class OrderRepository implements OrderDomainRepository {
 
             const orders = await OrderModel.aggregate(pipeline);
             const total = await OrderModel.countDocuments(matchStage);
+            console.log(pipeline, "pipeline");
+            console.log(total, "total");
+            console.log(orders, "orders");
 
             const finalResult = await Promise.all(
                 orders.map(async (order) => {
@@ -381,7 +381,6 @@ export class OrderRepository implements OrderDomainRepository {
                     let customerTotalTax = 0, wholesalerTotalTax = 0;
 
                     // Fetch user info
-                    const isCustomer = ['customer', 'User', 'pos'].includes(type || '');
                     const userModel: any = isCustomer ? Users : WholesalerRetailsers;
                     const user = await userModel.findOne({ _id: order.placedBy, isActive: true, isDelete: false });
 
@@ -419,6 +418,7 @@ export class OrderRepository implements OrderDomainRepository {
                                     }]
                                 };
                             } else {
+                                if (!item.productId) return null;
                                 const product = await ProductModel.findOne({ _id: item.productId, isActive: 1, isDelete: 0 });
                                 if (!product) return null;
 
@@ -440,7 +440,7 @@ export class OrderRepository implements OrderDomainRepository {
                                     })
                                 ]);
 
-                                const attrIds = Object.values(item?.attributes || {}).filter(val => typeof val === 'string').map(id => new Types.ObjectId(id));
+                                const attrIds = Object.values(item?.attributes || {}).filter(val => typeof val === 'string' && Types.ObjectId.isValid(val)).map(id => new Types.ObjectId(id as string));
                                 const attributeData = await Promise.all(
                                     attrIds.map(id => Attribute.findOne({ "value._id": id }, { name: 1, value: { $elemMatch: { _id: id } } }))
                                 );
@@ -516,11 +516,115 @@ export class OrderRepository implements OrderDomainRepository {
 
     async getById(id: string) {
         try {
-            const ord = await OrderModel.findById(id);
-            if (!ord) {
+            if (!Types.ObjectId.isValid(id)) {
+                return createErrorResponse('Invalid ID', StatusCodes.BAD_REQUEST, 'Invalid order ID');
+            }
+
+            const order = await OrderModel.findById(id).lean();
+            if (!order) {
                 return createErrorResponse('Not found', StatusCodes.NOT_FOUND, 'Order not found');
             }
-            return successResponse('Order fetched', StatusCodes.OK, ord);
+
+            let userName = '', userAddress = '';
+            const isCustomer = ['customer', 'User', 'pos'].includes(order.placedByModel || '');
+            const userModel: any = isCustomer ? Users : WholesalerRetailsers;
+            const user = (order.placedBy && Types.ObjectId.isValid(order.placedBy))
+                ? await userModel.findOne({ _id: order.placedBy, isActive: true, isDelete: false })
+                : null;
+
+            if (user) {
+                userName = user.name ?? '';
+                userAddress = user.address ?? '';
+            }
+
+            let customerTotalTax = 0, wholesalerTotalTax = 0;
+
+            const products = await Promise.all(
+                order.items.map(async (item: any) => {
+                    if (item.offerType === 'package') {
+                        const offer = await OfferModel.findById(item.offerId);
+                        return {
+                            _id: '',
+                            offerType: offer?.offerType ?? '',
+                            offerId: offer?._id ?? '',
+                            productName: offer?.offerName ?? '',
+                            productCartId: item._id,
+                            quantity: item.quantity,
+                            unitPrice: Number(item.unitPrice || 0),
+                            productImage: offer?.images ?? [],
+                            customerAttribute: { attributeId: [''], rowData: [{}, {}] },
+                            attributeData: [{
+                                _id: '', name: '', value: [{ value: '', _id: '', stock: 10, maxLimit: 10 }]
+                            }]
+                        };
+                    } else {
+                        const product = await ProductModel.findOne({ _id: item.productId, isActive: 1, isDelete: 0 });
+                        if (!product) return null;
+
+                        const quantity = Number(item.quantity || 0);
+                        const unitPrice = Number(item.unitPrice || 0);
+                        const taxRate = Number(product.wholesalerTax || 0) / 100;
+                        const taxAmount = taxRate * unitPrice;
+
+                        wholesalerTotalTax += taxAmount * quantity;
+
+                        const [category] = await Promise.all([
+                            Category.findById(product.categoryId)
+                        ]);
+
+                        const attrValueIds = Object.values(item.attributes || {}).filter(
+                            (val): val is string => typeof val === 'string' && Types.ObjectId.isValid(val)
+                        );
+                        const attributeData = await Promise.all(
+                            attrValueIds.map((valId) =>
+                                Attribute.findOne(
+                                    { 'value._id': new Types.ObjectId(valId) },
+                                    {
+                                        name: 1,
+                                        value: { $elemMatch: { _id: new Types.ObjectId(valId) } },
+                                    }
+                                )
+                            )
+                        );
+
+                        const finalProduct: any = {
+                            ...product.toObject(),
+                            quantity,
+                            unitPrice,
+                            productCartId: item._id,
+                            attributeData,
+                            attributes: item.attributes,
+                            categoryName: category?.name ?? '',
+                            productwholesalerTaxPrice: taxAmount,
+                            offerId: item.offerId ?? '',
+                            offerType: item.offerType ?? ''
+                        };
+
+                        if (isCustomer) delete finalProduct.wholesalerAttribute;
+                        if (!isCustomer) delete finalProduct.customerAttribute;
+
+                        return finalProduct;
+                    }
+                })
+            );
+
+            const baseTotal = (Number(order.totalAmount || 0) +
+                (isCustomer ? Number(customerTotalTax || 0) : Number(wholesalerTotalTax || 0)) +
+                Number(order.deliveryCharge || 0)).toFixed(2);
+
+            const enrichedOrder = {
+                ...order,
+                products: products.filter(Boolean),
+                customerTotalTax,
+                wholesalerTotalTax,
+                total: baseTotal,
+                subTotal: order.totalAmount,
+                userName,
+                userAddress,
+                deliveryCharge: order.deliveryCharge ?? 0
+            };
+
+            return successResponse('Order fetched', StatusCodes.OK, enrichedOrder);
         } catch (e: any) {
             return createErrorResponse('Get error', StatusCodes.INTERNAL_SERVER_ERROR, e.message);
         }

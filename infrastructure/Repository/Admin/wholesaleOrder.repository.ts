@@ -2489,6 +2489,9 @@ export class WholesaleOrderRepository implements IWholesaleOrderRepository {
 
   async orderDetails(orderId: string) {
     try {
+      if (!Types.ObjectId.isValid(orderId)) {
+        return createErrorResponse('Invalid Order ID', StatusCodes.BAD_REQUEST);
+      }
       const order = await OrderModel.findOne({ _id: new Types.ObjectId(orderId), isDelete: false });
 
       if (!order) {
@@ -2536,6 +2539,7 @@ export class WholesaleOrderRepository implements IWholesaleOrderRepository {
       let customerTotalTax = 0;
       const products = await Promise.all(
         order.items.map(async (item: any) => {
+          if (!Types.ObjectId.isValid(item.productId)) return null;
           const product = await ProductModel.findOne({
             _id: new Types.ObjectId(item.productId),
             isActive: 1,
@@ -2560,10 +2564,10 @@ export class WholesaleOrderRepository implements IWholesaleOrderRepository {
           ]);
 
           const attributeValueIds = Object.values(item.attributes || {}).filter(
-            (val): val is string => typeof val === 'string'
+            (val): val is string => typeof val === 'string' && Types.ObjectId.isValid(val)
           );
 
-          const attributeObjectIds = attributeValueIds.map((id) => new Types.ObjectId(id));
+          const attributeObjectIds = attributeValueIds.map((id) => new Types.ObjectId(id as any));
 
           const attributeData = await Promise.all(
             attributeObjectIds.map((id) =>
@@ -2587,9 +2591,9 @@ export class WholesaleOrderRepository implements IWholesaleOrderRepository {
             productwholesalerTaxPrice: wholesalerTaxPrice
           };
 
-          if (order.placedByModel === 'User' || 'AdminUser') {
+          if (['User', 'AdminUser'].includes(order.placedByModel || '')) {
             delete finalProduct.wholesalerAttribute;
-          } else if (order.placedByModel === 'Wholesaler' || 'Retailer') {
+          } else if (['Wholesaler', 'Retailer'].includes(order.placedByModel || '')) {
             delete finalProduct.customerAttribute;
           }
 
@@ -2606,7 +2610,7 @@ export class WholesaleOrderRepository implements IWholesaleOrderRepository {
         subTotal: order.totalAmount,
         // total: order.totalAmount + (order.placedByModel === 'User' || 'AdminUser' ? customerTotalTax : wholesalerTotalTax),
         total: (Number(order.totalAmount ?? 0) +
-          Number(order.placedByModel === 'User' || 'AdminUser' ? customerTotalTax : wholesalerTotalTax) +
+          Number(['User', 'AdminUser'].includes(order.placedByModel || '') ? customerTotalTax : wholesalerTotalTax) +
           Number(order?.deliveryCharge ?? 0)
         ).toFixed(2),
         userName,
@@ -2626,8 +2630,6 @@ export class WholesaleOrderRepository implements IWholesaleOrderRepository {
         status: { $nin: ["cancelled", "reorder"] },
         isDelete: false
       });
-
-      console.log("Order found:", order?._id);
 
       if (!order) {
         return createErrorResponse('Order not found', StatusCodes.NOT_FOUND);
@@ -2679,28 +2681,28 @@ export class WholesaleOrderRepository implements IWholesaleOrderRepository {
       const products = await Promise.all(
         order.items.map(async (item: any) => {
           try {
-            const productId = item.productId.toString();
-            console.log("Processing product ID:", productId);
+            if (!item.productId || !Types.ObjectId.isValid(item.productId)) {
+              return null;
+            }
 
             // Get the product with basic details
             const product = await ProductModel.findOne({
-              _id: new Types.ObjectId(productId),
+              _id: new Types.ObjectId(item.productId),
               isActive: 1,
               isDelete: 0
             }).lean();
 
             if (!product) {
-              console.log("Product not found:", productId);
               return null;
             }
 
-            console.log("Product found:", product.productName);
-            console.log("Customer attribute IDs:", product.customerAttribute?.attributeId);
-            console.log("Customer rowData:", product.customerAttribute?.rowData);
-
             // Convert attribute IDs to ObjectIds
-            const customerAttributeIds = product.customerAttribute?.attributeId?.map(id => new Types.ObjectId(id)) || [];
-            const wholesalerAttributeIds = product.wholesalerAttribute?.attributeId?.map(id => new Types.ObjectId(id)) || [];
+            const customerAttributeIds = (product.customerAttribute?.attributeId || [])
+              .filter((id: any) => Types.ObjectId.isValid(id))
+              .map((id: any) => new Types.ObjectId(id));
+            const wholesalerAttributeIds = (product.wholesalerAttribute?.attributeId || [])
+              .filter((id: any) => Types.ObjectId.isValid(id))
+              .map((id: any) => new Types.ObjectId(id));
 
             // Get all related data using separate queries
             const [
@@ -2727,9 +2729,6 @@ export class WholesaleOrderRepository implements IWholesaleOrderRepository {
               Admin.findById(product.modifiedBy).select('name').lean()
             ]);
 
-            console.log("Customer attribute details found:", customerAttributeDetails?.length || 0);
-            console.log("Wholesaler attribute details found:", wholesalerAttributeDetails?.length || 0);
-
             // Calculate taxes
             const unitPrice = Number(item.unitPrice || 0);
             const quantity = Number(item.quantity || 0);
@@ -2743,10 +2742,10 @@ export class WholesaleOrderRepository implements IWholesaleOrderRepository {
 
             // Get attribute data for the selected variants
             const attributeValueIds = Object.values(item.attributes || {}).filter(
-              (val): val is string => typeof val === 'string'
+              (val): val is string => typeof val === 'string' && Types.ObjectId.isValid(val)
             );
 
-            const attributeObjectIds = attributeValueIds.map((id) => new Types.ObjectId(id));
+            const attributeObjectIds = attributeValueIds.map((id) => new Types.ObjectId(id as any));
 
             // Get specific attribute data for the selected variants
             const attributeData = await Promise.all(
@@ -2819,7 +2818,6 @@ export class WholesaleOrderRepository implements IWholesaleOrderRepository {
               }).filter((attr: any) => attr.value && attr.value.length > 0);
             }
 
-            console.log("Filtered customer attribute details:", filteredCustomerAttributeDetails.length);
 
             // Build the final product object
             const finalProduct: any = {
@@ -2842,18 +2840,14 @@ export class WholesaleOrderRepository implements IWholesaleOrderRepository {
               productwholesalerTaxPrice: wholesalerTaxPrice
             };
 
-            // Remove unnecessary attributes based on order type
-            if (order.placedByModel === 'User' || order.placedByModel === 'AdminUser') {
+            if (['User', 'AdminUser'].includes(order.placedByModel || '')) {
               delete finalProduct.wholesalerAttribute;
               delete finalProduct.wholesalerAttributeDetails;
-            } else if (order.placedByModel === 'Wholesaler' || order.placedByModel === 'Retailer') {
+            } else if (['Wholesaler', 'Retailer'].includes(order.placedByModel || '')) {
               delete finalProduct.customerAttribute;
               delete finalProduct.customerAttributeDetails;
             }
 
-            console.log("Product processed successfully:", finalProduct.productName);
-            console.log("Has customerAttributeDetails:", !!finalProduct.customerAttributeDetails);
-            console.log("customerAttributeDetails length:", finalProduct.customerAttributeDetails?.length || 0);
 
             return finalProduct;
 
@@ -2884,7 +2878,7 @@ export class WholesaleOrderRepository implements IWholesaleOrderRepository {
         placedByName,
         subTotal: order.totalAmount,
         total: (Number(order.totalAmount ?? 0) +
-          Number(order.placedByModel === 'User' || order.placedByModel === 'AdminUser' ? customerTotalTax : wholesalerTotalTax) +
+          Number(['User', 'AdminUser'].includes(order.placedByModel || '') ? customerTotalTax : wholesalerTotalTax) +
           Number(order?.deliveryCharge ?? 0)
         ).toFixed(2),
         userName,
