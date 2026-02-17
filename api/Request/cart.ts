@@ -13,7 +13,6 @@ export const createCartSchema = z.object({
             csTolerance: z.string().optional(),
             sku: z.string().optional(),
             variantName: z.string().optional(),
-            price: z.number().nonnegative('Price must be non-negative').default(0).optional(),
             mrpPrice: z.number().default(0).optional(),
         })
     ).optional(),

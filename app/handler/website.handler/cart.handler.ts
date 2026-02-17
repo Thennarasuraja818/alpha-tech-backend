@@ -123,14 +123,31 @@ export class CartHandler {
           );
 
           if (isDuplicate) {
-            res.status(StatusCodes.BAD_REQUEST).json({
-              status: "error",
-              message: "Product variant already exists in cart",
-            });
-            return;
-          }
+            const duplicateItem = cart.products.find((p: any) =>
+              p.productId.toString() === newProduct.productId.toString() &&
+              this.areAttributesEqual(p.attributes, newProduct.attributes) && !p.offerId
+            );
 
-          result = await this.updateExistingCartwithProduct(cart, newProduct);
+            if (duplicateItem) {
+              const newQuantity = newProduct.quantity;
+              // Use the internal helper method to update the quantity
+              result = await this.updateCartProductQuantity(
+                cart._id.toString(),
+                duplicateItem._id.toString(), // Pass the cart item's _id
+                newQuantity,
+                false // Not an offer
+              );
+
+              if (result.status === 'error') {
+                res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(result);
+                return;
+              }
+              // The helper returns a standard response wrapper, we need the data
+              result = result.data;
+            }
+          } else {
+            result = await this.updateExistingCartwithProduct(cart, newProduct);
+          }
         }
 
       } else {
@@ -144,7 +161,10 @@ export class CartHandler {
             type,
             userId: type === 'user' ? userId : null,
             guestUserId: type !== 'user' ? (guestUserId || await this.generateID()) : null,
-            products,
+            products: (products || []).map((p: any) => ({
+              ...p,
+              totalAmount: (p.mrpPrice || 0) * (p.quantity || 1)
+            })),
             subtotal: newProduct?.mrpPrice * newProduct?.quantity,
             total: newProduct.mrpPrice * newProduct.quantity
           };
@@ -187,44 +207,6 @@ export class CartHandler {
 
     return JSON.stringify(n1) === JSON.stringify(n2);
   }
-
-  updateCart = async (req: Request, res: Response): Promise<any> => {
-    try {
-      const cartId = req.params.id as any;
-
-      if (!cartId || !Types.ObjectId.isValid(cartId)) {
-        return res.status(StatusCodes.BAD_REQUEST).json({
-          status: "error",
-          message: "A valid Cart ID is required",
-        });
-      }
-
-      const parsed = createCartSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(StatusCodes.BAD_REQUEST).json({
-          status: "error",
-          message: "Validation failed",
-          errors: parsed.error.errors,
-        });
-      }
-
-      const { type, ...rest } = parsed.data;
-
-      const data: CreateCart = { ...rest, type };
-
-      const result = await this.cartRepo.updateCart(cartId, data);
-
-      return res.status(
-        result.status === 'error' ? StatusCodes.BAD_REQUEST : StatusCodes.OK
-      ).json(result);
-
-    } catch (err: any) {
-      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-        status: "error",
-        message: err.message || "Internal server error",
-      });
-    }
-  };
 
   getCart = async (req: Request, res: Response): Promise<any> => {
     const { limit, offset, search, sortBy = 'createdAt', order = 'desc', type, userType } = req.query;
@@ -398,9 +380,9 @@ export class CartHandler {
           quantity: quantity,
           attributes: item.attributes,
           offerAmount: 0,
-          price: offer.fixedAmount,
+          totalAmount: offer.fixedAmount * quantity,
           offerId: offer._id,
-          mrpPrice: offer.mrpPrice * quantity  // Store divided MRP per product
+          mrpPrice: offer.mrpPrice
         });
       });
     }
@@ -461,13 +443,13 @@ export class CartHandler {
           uniqueOffers.add(offerId);
 
           // Add only ONCE: the main offer price
-          subtotal += (product.offerPrice || product.mrpPrice || 0) * (product.quantity || 1);
+          subtotal += (product.totalAmount || (product.mrpPrice || 0) * (product.quantity || 1));
 
         }
 
       } else {
         // normal products (count quantity)
-        subtotal += (product.mrpPrice || 0) * (product.quantity || 1);
+        subtotal += product.totalAmount || (product.mrpPrice || 0) * (product.quantity || 1);
       }
 
     });
@@ -478,14 +460,18 @@ export class CartHandler {
 
 
   async updateExistingCartwithProduct(cart: any, newProduct: any) {
-    // Simply push the new product to the existing cart and update totals
+    const productWithTotal = {
+      ...newProduct,
+      totalAmount: (newProduct.mrpPrice || 0) * (newProduct.quantity || 1)
+    };
+
     const result = await CartModel.findOneAndUpdate(
       { _id: cart._id, isDelete: false },
       {
-        $push: { products: newProduct },
+        $push: { products: productWithTotal },
         $inc: {
-          subtotal: newProduct.mrpPrice * newProduct.quantity,
-          total: newProduct.mrpPrice * newProduct.quantity
+          subtotal: productWithTotal.totalAmount,
+          total: productWithTotal.totalAmount
         }
       },
       { new: true }
@@ -494,10 +480,59 @@ export class CartHandler {
     return result;
   }
 
+  private async updateCartProductQuantity(cartId: string, productId: string, quantity: number, offer: boolean): Promise<any> {
+    try {
+      const cart: any = await CartModel.findById(cartId);
+      if (!cart) {
+        return { status: "error", message: "Cart not found" };
+      }
+
+      const matchCondition = offer
+        ? (p: any) => p.offerId?.toString() === productId
+        : (p: any) => p._id?.toString() === productId;
+
+      const product = cart.products.find(matchCondition);
+
+      if (!product) {
+        return { status: "error", message: "Product not found in cart" };
+      }
+
+      // Calculate the difference in price
+      const oldTotal = product.totalAmount || (product.mrpPrice * product.quantity);
+      const newTotal = product.mrpPrice * quantity;
+      const difference = newTotal - oldTotal;
+
+      // Update the specific product in the array
+      const updateQuery = offer
+        ? { "products.offerId": new Types.ObjectId(productId) }
+        : { "products._id": new Types.ObjectId(productId) };
+
+      const updateSet = {
+        "products.$.quantity": quantity,
+        "products.$.totalAmount": newTotal
+      };
+
+      const result = await CartModel.findOneAndUpdate(
+        { _id: new Types.ObjectId(cartId), ...updateQuery },
+        {
+          $set: updateSet,
+          $inc: {
+            subtotal: difference,
+            total: difference
+          }
+        },
+        { new: true }
+      );
+
+      return { status: "success", data: result };
+
+    } catch (err: any) {
+      return { status: "error", message: err.message || "Internal server error" };
+    }
+  }
+
 }
 
 export function CartHandlerFun(cartRepo: ICartRepository): CartHandler {
   return new CartHandler(cartRepo);
 }
-
-

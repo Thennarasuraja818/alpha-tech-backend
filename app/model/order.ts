@@ -30,8 +30,8 @@ export interface OrderDocument {
     roundoff: number;             // difference
     totalTax: number,
     amountPaid: number;
-    amountPending: number;
-    creditId: Types.ObjectId;
+    // amountPending: number;
+    // creditId: Types.ObjectId;
     status: 'pending' | 'shipped' | 'delivered' | 'cancelled' | 'packed' | 'return-initiated' | 'return-approved' | 'return-cancelled' | 'exchange-initiated';
     paymentStatus: 'pending' | 'paid' | 'failed' | 'partially-paid';
     shippingAddress: {
@@ -49,11 +49,11 @@ export interface OrderDocument {
     modifiedBy: Types.ObjectId;
     createdAt: Date;
     updatedAt: Date;
-    WorkerAssignDate: Date;
+    // WorkerAssignDate: Date;
     paymentMode: { type: String };
     orderFrom: { type: string, default: 'website' };
     orderType: { type: String, default: '' };
-    creditManagement: CreditMang[],
+    // creditManagement: CreditMang[],
     deliveryCharge: { type: Number },
     packingType: String,
     reason: String;
@@ -66,12 +66,12 @@ export interface OrderDocument {
     manualPayment: Boolean;
     mannualPaymentMethod: String;
     deliveryman: Types.ObjectId;
-    incharge: Types.ObjectId;
-    loadman?: Types.ObjectId[];
-    vehicleId: Types.ObjectId;
-    kilometer?: number;
-    walletAmount: number
-    packedDate?: Date | null;
+    // incharge: Types.ObjectId;
+    // loadman?: Types.ObjectId[];
+    // vehicleId: Types.ObjectId;
+    // kilometer?: number;
+    // walletAmount: number
+    // packedDate?: Date | null;
     deliveredDate?: Date | null;
     cancelledDate?: Date | null;
     cancelReason?: String;
@@ -119,17 +119,17 @@ const orderSchema = new Schema<OrderDocument>(
         roundoff: { type: Number, default: 0 },
         totalTax: { type: Number, required: false },
         amountPaid: { type: Number, default: 0 },
-        amountPending: { type: Number, default: 0 },
+        // amountPending: { type: Number, default: 0 },
         paymentMode: { type: String, required: false, default: '' },
-        creditId: { type: Schema.Types.ObjectId, ref: 'wholesalercredit', required: false },
-        creditManagement: { type: [creditManageMent], required: false },
+        // creditId: { type: Schema.Types.ObjectId, ref: 'wholesalercredit', required: false },
+        // creditManagement: { type: [creditManageMent], required: false },
         status: {
             type: String,
             enum: ['pending', 'packed', 'shipped', 'delivered', 'cancelled', 'return-initiated', 'return-approved', 'return-cancelled', 'exchange-initiated', 'reorder'],
             default: 'pending',
         },
-        packedDate: { type: Date, default: null },
-        WorkerAssignDate: { type: Date, default: null },
+        // packedDate: { type: Date, default: null },
+        // WorkerAssignDate: { type: Date, default: null },
         deliveredDate: { type: Date, default: null },
         cancelledDate: { type: Date, default: null },
         paymentStatus: {
@@ -166,11 +166,11 @@ const orderSchema = new Schema<OrderDocument>(
         manualPayment: { type: Boolean, default: false },
         mannualPaymentMethod: { type: String, default: '' },
         deliveryman: { type: Schema.Types.ObjectId, ref: "AdminUser" },
-        incharge: { type: Schema.Types.ObjectId, ref: "AdminUser" },
-        loadman: [{ type: Schema.Types.ObjectId, ref: "AdminUser" }],
-        vehicleId: { type: Schema.Types.ObjectId, ref: "Vehicle" },
-        kilometer: { type: Number, default: 0 },
-        walletAmount: { type: Number, default: 0 },
+        // incharge: { type: Schema.Types.ObjectId, ref: "AdminUser" },
+        // loadman: [{ type: Schema.Types.ObjectId, ref: "AdminUser" }],
+        // vehicleId: { type: Schema.Types.ObjectId, ref: "Vehicle" },
+        // kilometer: { type: Number, default: 0 },
+        // walletAmount: { type: Number, default: 0 },
         cancelReason: { type: String, default: '' },
         discount: { type: Number, default: 0, required: false }
     },

@@ -10,7 +10,7 @@ export interface ICart extends Document {
         type: Object,
       },
       offerAmount: { type: Number, required: false },
-      price: { type: Number, required: true, default: 0 }
+      totalAmount: { type: Number, required: true, default: 0 }
     }
   ],
   subtotal: { type: Number, required: true, default: 0 },
@@ -26,7 +26,7 @@ const cartSchema = new Schema({
       quantity: { type: Number, required: true },
       attributes: { type: Object },
       offerAmount: { type: Number, required: false },
-      price: { type: Number, required: true, default: 0 },
+      totalAmount: { type: Number, default: 0 },
       mrpPrice: { type: Number, default: 0 },
       offerId: { type: Schema.Types.ObjectId, ref: 'offers', required: false, default: null },
       createdAt: { type: Date, default: Date.now() }

@@ -13,7 +13,7 @@ export interface OrderDomainRepository {
     list(params: {
         page: number; limit: number, type: string, userId: string, orderStatus: string,
         paymentStatus?: string,
-        dateFilter?: string, startDate?: string, endDate?: string,orderCode?: string
+        dateFilter?: string, startDate?: string, endDate?: string, orderCode?: string
     }): Promise<PaginationResult<OrderDocument> | ErrorResponse>;
     delete(id: string, userId: string): Promise<ApiResponse<SuccessMessage> | ErrorResponse>;
     getById(id: string): Promise<ApiResponse<OrderDocument> | ErrorResponse>;
@@ -24,7 +24,7 @@ export interface OrderDomainRepository {
     }): Promise<PaginationResult<OrderDocument> | ErrorResponse>;
     getRouteList(params: RootListParams): Promise<PaginationResult<RootDocumentResponse[]> | ErrorResponse>;
     updateOrderStatus(id: string, status: string, userId: string, reason: string): Promise<ApiResponse<SuccessMessage> | ErrorResponse>;
-  }
+}
 
 export interface OrderDomainService {
     create(input: CreateOrderInput, userId: string): Promise<ApiResponse<SuccessMessage> | ErrorResponse>;
@@ -43,5 +43,5 @@ export interface OrderDomainService {
     }): Promise<PaginationResult<OrderDocument> | ErrorResponse>;
     getRouteList(params: RootListParams): Promise<PaginationResult<RootDocumentResponse[]> | ErrorResponse>;
     updateOrderStatus(id: string, status: string, userId: string, reason: string): Promise<ApiResponse<SuccessMessage> | ErrorResponse>;
-   
+
 }
