@@ -24,6 +24,7 @@ export interface OrderDomainRepository {
     }): Promise<PaginationResult<OrderDocument> | ErrorResponse>;
     getRouteList(params: RootListParams): Promise<PaginationResult<RootDocumentResponse[]> | ErrorResponse>;
     updateOrderStatus(id: string, status: string, userId: string, reason: string): Promise<ApiResponse<SuccessMessage> | ErrorResponse>;
+    getOrderCounts(userId: string): Promise<ApiResponse<{ totalCount: number, activeCount: number }> | ErrorResponse>;
 }
 
 export interface OrderDomainService {
@@ -43,5 +44,6 @@ export interface OrderDomainService {
     }): Promise<PaginationResult<OrderDocument> | ErrorResponse>;
     getRouteList(params: RootListParams): Promise<PaginationResult<RootDocumentResponse[]> | ErrorResponse>;
     updateOrderStatus(id: string, status: string, userId: string, reason: string): Promise<ApiResponse<SuccessMessage> | ErrorResponse>;
+    getOrderCounts(userId: string): Promise<ApiResponse<{ totalCount: number, activeCount: number }> | ErrorResponse>;
 
 }

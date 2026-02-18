@@ -363,6 +363,31 @@ class OrderHandler {
             );
         }
     };
+
+    getOrderCounts = async (req: Request, res: Response): Promise<any> => {
+        try {
+            const userId = req.user?.id;
+            if (!userId) {
+                return sendErrorResponse(
+                    res,
+                    StatusCodes.UNAUTHORIZED,
+                    'User not authenticated',
+                    'UNAUTHORIZED'
+                );
+            }
+
+            const result = await this.service.getOrderCounts(userId);
+            sendResponse(res, result);
+        } catch (err: any) {
+            sendErrorResponse(
+                res,
+                StatusCodes.INTERNAL_SERVER_ERROR,
+                'Internal server error',
+                'INTERNAL_SERVER_ERROR',
+                err.message
+            );
+        }
+    };
 }
 
 export function OrderHandlerFun(service: OrderDomainService): OrderHandler {

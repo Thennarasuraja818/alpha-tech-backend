@@ -371,9 +371,6 @@ export class OrderRepository implements OrderDomainRepository {
 
             const orders = await OrderModel.aggregate(pipeline);
             const total = await OrderModel.countDocuments(matchStage);
-            console.log(pipeline, "pipeline");
-            console.log(total, "total");
-            console.log(orders, "orders");
 
             const finalResult = await Promise.all(
                 orders.map(async (order) => {
@@ -978,6 +975,26 @@ export class OrderRepository implements OrderDomainRepository {
                 StatusCodes.INTERNAL_SERVER_ERROR,
                 error.message
             );
+        }
+    }
+
+    async getOrderCounts(userId: string): Promise<ApiResponse<{ totalCount: number, activeCount: number }> | ErrorResponse> {
+        try {
+            const userObjectId = new Types.ObjectId(userId);
+            const totalCount = await OrderModel.countDocuments({
+                placedBy: userObjectId,
+                isDelete: false
+            });
+
+            const activeCount = await OrderModel.countDocuments({
+                placedBy: userObjectId,
+                isDelete: false,
+                status: { $in: ['pending', 'packed', 'shipped'] }
+            });
+
+            return successResponse('Order counts fetched', StatusCodes.OK, { totalCount, activeCount });
+        } catch (error: any) {
+            return createErrorResponse('Count error', StatusCodes.INTERNAL_SERVER_ERROR, error.message);
         }
     }
     async generateInvoiceId(): Promise<string> {

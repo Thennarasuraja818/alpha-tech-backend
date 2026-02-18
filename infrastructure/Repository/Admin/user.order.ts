@@ -13,6 +13,7 @@ import Users from "../../../app/model/user";
 import WholesalerRetailsers from "../../../app/model/Wholesaler";
 import { WholeSalerCreditModel } from "../../../app/model/wholesaler.credit";
 import Category from '../../../app/model/category';
+import { successResponse } from "../../../utils/common/commonResponse";
 
 class UserOrderRepository implements UserOrderDomainRepository {
     private db: any;
@@ -198,6 +199,90 @@ class UserOrderRepository implements UserOrderDomainRepository {
         }
     }
 
+    async getSalesProductReport(params: { fromDate?: string; toDate?: string; productId?: string; customerId?: string; page?: number; limit?: number }) {
+        try {
+            const { fromDate, toDate, productId, customerId } = params;
+
+            const matchStage: any = { isDelete: false };
+
+            if (fromDate && toDate) {
+                matchStage.createdAt = {
+                    $gte: moment(fromDate).startOf('day').toDate(),
+                    $lte: moment(toDate).endOf('day').toDate()
+                };
+            } else if (fromDate) {
+                matchStage.createdAt = { $gte: moment(fromDate).startOf('day').toDate() };
+            } else if (toDate) {
+                matchStage.createdAt = { $lte: moment(toDate).endOf('day').toDate() };
+            }
+
+            if (customerId && Types.ObjectId.isValid(customerId)) {
+                matchStage.placedBy = new Types.ObjectId(customerId);
+            }
+
+            const pipeline: any[] = [
+                { $match: matchStage },
+                { $unwind: "$items" }
+            ];
+
+            if (productId && Types.ObjectId.isValid(productId)) {
+                pipeline.push({ $match: { "items.productId": new Types.ObjectId(productId) } });
+            }
+
+            pipeline.push(
+                {
+                    $lookup: {
+                        from: 'products',
+                        localField: 'items.productId',
+                        foreignField: '_id',
+                        as: 'productInfo'
+                    }
+                },
+                { $unwind: { path: "$productInfo", preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: 'users',
+                        localField: 'placedBy',
+                        foreignField: '_id',
+                        as: 'userInfo'
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'wholesalers',
+                        localField: 'placedBy',
+                        foreignField: '_id',
+                        as: 'wholesalerInfo'
+                    }
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        date: "$createdAt",
+                        orderId: "$orderCode",
+                        customerName: {
+                            $concat: [
+                                { $ifNull: [{ $arrayElemAt: ["$userInfo.name", 0] }, ""] },
+                                { $ifNull: [{ $arrayElemAt: ["$wholesalerInfo.name", 0] }, ""] }
+                            ]
+                        },
+                        productName: { $ifNull: ["$productInfo.productName", "N/A"] },
+                        quantity: "$items.quantity",
+                        unitPrice: "$items.unitPrice",
+                        variantName: { $ifNull: ["$items.attributes.variantName", ""] },
+                        totalPrice: { $multiply: ["$items.quantity", "$items.unitPrice"] }
+                    }
+                },
+                { $sort: { date: -1 } }
+            );
+
+            const result = await OrderModel.aggregate(pipeline);
+
+            return successResponse('Sales report fetched successfully', StatusCodes.OK, result);
+        } catch (error: any) {
+            return createErrorResponse('Report error', StatusCodes.INTERNAL_SERVER_ERROR, error.message);
+        }
+    }
 }
 
 
