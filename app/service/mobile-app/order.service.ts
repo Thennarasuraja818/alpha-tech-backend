@@ -25,7 +25,7 @@ class OrderService implements OrderDomainService {
         return this.repo.updateStatus(id, amount, userId);
     }
 
-    list(params: { page: number; limit: number, type: string, userId: string, orderStatus: string, dateFilter?: string, startDate?: string, endDate?: string,orderCode?: string }) {
+    list(params: { page: number; limit: number, type: string, userId: string, orderStatus: string, dateFilter?: string, startDate?: string, endDate?: string, orderCode?: string }) {
         return this.repo.list(params);
     }
 
@@ -36,8 +36,10 @@ class OrderService implements OrderDomainService {
     getById(id: string) {
         return this.repo.getById(id);
     }
-    lineManOrderList(params: { page: number; limit: number, type: string, userId: string, 
-        status: string , dateFilter?: string, startDate?: string, endDate?: string }) {
+    lineManOrderList(params: {
+        page: number; limit: number, type: string, userId: string,
+        status: string, dateFilter?: string, startDate?: string, endDate?: string
+    }) {
         return this.repo.lineManOrderList(params);
     }
     getRouteList(params: RootListParams): Promise<PaginationResult<RootDocumentResponse[]> | ErrorResponse> {
@@ -46,7 +48,10 @@ class OrderService implements OrderDomainService {
     updateOrderStatus(id: string, status: string, userId: string, reason: string) {
         return this.repo.updateOrderStatus(id, status, userId, reason);
     }
-   
+
+    getOrderCounts(userId: string) {
+        return this.repo.getOrderCounts(userId);
+    }
 }
 
 

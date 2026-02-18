@@ -21,4 +21,5 @@ export function RegisterOrderRoute(
   router.get('/root/dtls/list', handler.getAllRoot);
   router.put('/orders/update-status', handler.updateOrderStatus);
   router.get('/line-man/orders', handler.linemanlist);
+  router.get('/order-counts', middleware, handler.getOrderCounts);
 }
