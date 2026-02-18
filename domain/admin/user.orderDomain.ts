@@ -6,20 +6,20 @@ import { PaginationResult } from "../../api/response/paginationResponse";
 import { OrderDocument } from "../../app/model/order";
 
 export interface VendorListParams {
-    page: number;
-    limit: number;
-    search: string;
-    sort: 'asc' | 'desc';
-    type: string;
-    vendorId: string | ""
+       page: number;
+       limit: number;
+       search: string;
+       sort: 'asc' | 'desc';
+       type: string;
+       vendorId: string | ""
 }
 
 export interface UserOrderDomainRepository {
        list(params: { page: number; limit: number, type: string, userId: string, orderStatus: string }): Promise<PaginationResult<OrderDocument> | ErrorResponse>;
-   
+       getSalesProductReport(params: { fromDate?: string; toDate?: string; productId?: string; customerId?: string; page?: number; limit?: number }): Promise<ApiResponse<any[]> | ErrorResponse>;
 }
 
 export interface UserOrderDomainService {
        list(params: { page: number; limit: number, type: string, userId: string, orderStatus: string }): Promise<PaginationResult<OrderDocument> | ErrorResponse>;
-   
+       getSalesProductReport(params: { fromDate?: string; toDate?: string; productId?: string; customerId?: string; page?: number; limit?: number }): Promise<ApiResponse<any[]> | ErrorResponse>;
 }

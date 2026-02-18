@@ -13,8 +13,11 @@ export class UserOrderService implements UserOrderDomainService {
 
   async list(params: { page: number; limit: number, type: string, userId: string, orderStatus: string }) {
     return this.userRepository.list(params);
-}
+  }
 
+  async getSalesProductReport(params: { fromDate?: string; toDate?: string; productId?: string; customerId?: string; page?: number; limit?: number }) {
+    return this.userRepository.getSalesProductReport(params);
+  }
 }
 // Factory function for service
 export function userOrderServiceFun(userRepo: UserOrderDomainRepository): UserOrderDomainService {

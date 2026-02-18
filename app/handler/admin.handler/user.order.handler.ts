@@ -3,7 +3,7 @@ import { UserRoleServiceDomain } from "../../../domain/admin/userRoleDomain";
 import { CreateUserRoleInput, createUserRoleSchema } from "../../../api/Request/userRole";
 import { StatusCodes } from "http-status-codes";
 import { UserOrderDomainService } from "../../../domain/admin/user.orderDomain";
-import { sendErrorResponse, sendPaginationResponse } from "../../../utils/common/commonResponse";
+import { sendErrorResponse, sendPaginationResponse, sendResponse } from "../../../utils/common/commonResponse";
 import { Types } from "mongoose";
 
 export class UserOrderHandler {
@@ -31,6 +31,30 @@ export class UserOrderHandler {
       }
       const result = await this.service.list({ page, limit, type, userId, orderStatus });
       sendPaginationResponse(res, result);
+    } catch (err: any) {
+      sendErrorResponse(
+        res,
+        StatusCodes.INTERNAL_SERVER_ERROR,
+        'Internal server error',
+        'INTERNAL_SERVER_ERROR',
+        err.message
+      );
+    }
+  };
+
+  getSalesProductReport = async (req: Request, res: Response): Promise<any> => {
+    try {
+      const params = {
+        fromDate: req.query.fromDate as string,
+        toDate: req.query.toDate as string,
+        productId: req.query.productId as string,
+        customerId: req.query.customerId as string,
+        page: req.query.page ? parseInt(req.query.page as string) : undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : undefined
+      };
+
+      const result = await this.service.getSalesProductReport(params);
+      sendResponse(res, result);
     } catch (err: any) {
       sendErrorResponse(
         res,
