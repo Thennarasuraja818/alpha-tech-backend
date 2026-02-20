@@ -1026,7 +1026,9 @@ class ProductRepository implements ProductDomainRepository {
                     offerId,
                     offerDiscount,
                     as_568a_standard: element.as_568a_standard ?? [],
-                    jis_b_2401_standard: element.jis_b_2401_standard ?? []
+                    jis_b_2401_standard: element.jis_b_2401_standard ?? [],
+                    customerAttribute: element.customerAttribute ?? [],
+                    wholesalerAttribute: element.wholesalerAttribute ?? [],
                 };
 
                 if (params.type == 'customer' || params.type == 'retailer') {
