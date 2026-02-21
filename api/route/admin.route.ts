@@ -15,12 +15,14 @@ import { RegisterAdminRoute as RegisterAdminUserRoute } from "./admin/admin.user
 import { WholeSaleOrderRoute } from "./admin/wholesale.order.route";
 import { newWholesaleOrderRepository } from "../../infrastructure/Repository/Admin/wholesaleOrder.repository";
 import { RegisterNewAttributeRoute } from "./admin/attribute.route";
+import { RegisterNewVariantRoute } from "./admin/variant.route";
 import { RegisterNewBrandRoute } from "./admin/brand.route";
 import { NewVendorRepository } from "../../infrastructure/Repository/Admin/vendor.repository";
 import { RegisterNewVendorRoute } from "./admin/vendor.route";
 import { RegisterNewProductRoute } from "./admin/product.route";
 import { NewProductRepoistory } from "../../infrastructure/Repository/Admin/product.repository";
 import { NewAttributeRepository } from "../../infrastructure/Repository/Admin/attribute.repository";
+import { NewVariantRepository } from "../../infrastructure/Repository/Admin/variant.repository";
 import { NewBrandRrpository } from "../../infrastructure/Repository/Admin/brand.repository";
 import { RegisterUserRoute } from "./admin/user.route";
 import { RegisterUserRoleRoute } from "./admin/userRole.route";
@@ -86,6 +88,7 @@ export function setupRoutes(router: Router, db: any) {
   // const adminAuthService = AdminAuthMiddlewareService(userRepo)
 
   const attributeRepo = NewAttributeRepository(db)
+  const variantRepo = NewVariantRepository(db)
   const brandRepo = NewBrandRrpository(db)
   const vendorRepo = NewVendorRepository(db)
   const productRepo = NewProductRepoistory(db)
@@ -118,6 +121,7 @@ export function setupRoutes(router: Router, db: any) {
   RegisterChildCategoryRoute(router, newChildCategoryRepository(), adminmiddleware.ValidateUser);
   WholeSaleOrderRoute(router, newWholesaleOrderRepository(), adminmiddleware.ValidateUser)
   RegisterNewAttributeRoute(router, attributeRepo, adminmiddleware.ValidateUser)
+  RegisterNewVariantRoute(router, variantRepo, adminmiddleware.ValidateUser)
   RegisterNewBrandRoute(router, brandRepo, adminmiddleware.ValidateUser)
   RegisterNewVendorRoute(router, vendorRepo, adminmiddleware.ValidateUser)
   RegisterNewProductRoute(router, productRepo, adminmiddleware.ValidateUser)
