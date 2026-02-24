@@ -1002,7 +1002,7 @@ export class OrderRepository implements OrderDomainRepository {
         const yyyyMMdd = now.toISOString().split('T')[0].replace(/-/g, '');
 
         const randomNumber = Math.floor(10000000 + Math.random() * 90000000); // 8-digit random number
-        return `nalsuvai_invoice_${yyyyMMdd}-${randomNumber}`;
+        return `alphatech_invoice_${yyyyMMdd}-${randomNumber}`;
     }
     async stockUpdation(input: any[]) {
         for (const val of input) {
