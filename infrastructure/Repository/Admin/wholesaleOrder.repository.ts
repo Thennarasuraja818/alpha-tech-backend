@@ -997,10 +997,10 @@ export class WholesaleOrderRepository implements IWholesaleOrderRepository {
       // ✅ STOCK MANAGEMENT: ONLY when order is pending → packed
       else if (order.status === 'pending' && newStatus === 'packed') {
         // Generate invoice if not exists
-        if (!order.invoiceId || order.invoiceId === "") {
-          const invoiceId = await this.generateInvoiceId();
-          updateApprovalData.invoiceId = invoiceId;
-        }
+        // if (!order.invoiceId || order.invoiceId === "") {
+        //   const invoiceId = await this.generateInvoiceId();
+        //   updateApprovalData.invoiceId = invoiceId;
+        // }
         updateApprovalData.packedDate = new Date();
 
         // ✅ REDUCE STOCK: Only for pending → packed transition
@@ -1074,7 +1074,7 @@ export class WholesaleOrderRepository implements IWholesaleOrderRepository {
         // Clear packed-related fields when moving back to pending
         if (newStatus === 'pending') {
           updateApprovalData.packedDate = null;
-          updateApprovalData.invoiceId = '';
+          // updateApprovalData.invoiceId = '';
         }
 
         // ✅ RETURN STOCK: For both packed→cancelled and packed→pending
